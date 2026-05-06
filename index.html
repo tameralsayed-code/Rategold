@@ -6,12 +6,13 @@
     <title>متجر تطبيقاتي | App Store</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- مكتبات Firebase المتوافقة مع HTML -->
+    <!-- مكتبات Firebase المتوافقة مع HTML (الإصدار 8) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-analytics.js"></script>
 
     <style>
-        /* ================= تصميم المتجر الفاخر ================= */
+        /* ================= نفس تصميم المتجر الفاخر ================= */
         :root { --bg-color: #0b1121; --glass-bg: rgba(30, 41, 59, 0.5); --glass-border: rgba(255, 255, 255, 0.08); --text-main: #f8fafc; --text-muted: #94a3b8; --accent-gold: #d4a019; --danger: #ef4444; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background-color: var(--bg-color); color: var(--text-main); overflow-x: hidden; min-height: 100vh; }
@@ -187,24 +188,25 @@
 
     <script>
         // =======================================================
-        // 🌟 إعدادات مشروعك الجديد في Firebase 🌟
+        // 🌟 إعدادات Firebase الجديدة الخاصة بك 🌟
         // =======================================================
         const firebaseConfig = {
-            apiKey: "AIzaSyCYoLXEu4qmMzGL9_5wyoPK-rRLnNMhAzw",
-            authDomain: "web-app-55b39.firebaseapp.com",
-            projectId: "web-app-55b39",
-            storageBucket: "web-app-55b39.firebasestorage.app",
-            messagingSenderId: "986601312549",
-            appId: "1:986601312549:web:059468f1f7616e926e0acc",
-            measurementId: "G-CFJCQ3L5J9"
+          apiKey: "AIzaSyCYoLXEu4qmMzGL9_5wyoPK-rRLnNMhAzw",
+          authDomain: "web-app-55b39.firebaseapp.com",
+          projectId: "web-app-55b39",
+          storageBucket: "web-app-55b39.firebasestorage.app",
+          messagingSenderId: "986601312549",
+          appId: "1:986601312549:web:059468f1f7616e926e0acc",
+          measurementId: "G-CFJCQ3L5J9"
         };
         // =======================================================
 
         // تهيئة Firebase
         firebase.initializeApp(firebaseConfig);
+        firebase.analytics(); // تفعيل التحليلات بناءً على الكود الذي أرسلته
         const db = firebase.firestore();
 
-        let appsData =[];
+        let appsData = [];
         let currentCategory = 'all';
 
         const appsContainer = document.getElementById('appsContainer');
@@ -214,4 +216,173 @@
 
         // جلب البيانات لحظياً من Firebase (Real-time Listener)
         db.collection("apps").orderBy("timestamp", "desc").onSnapshot((querySnapshot) => {
-            appsData =
+            appsData = [];
+            querySnapshot.forEach((doc) => {
+                appsData.push({ id: doc.id, ...doc.data() });
+            });
+            renderApps();
+            renderAdminApps();
+        }, (error) => {
+            console.error("خطأ في جلب البيانات: ", error);
+            appsContainer.innerHTML = `<div class="loading-db" style="color:red;">حدث خطأ في الاتصال بقاعدة البيانات. تأكد من إعدادات Firestore.</div>`;
+        });
+
+        // دالة لعرض التطبيقات في المتجر
+        function renderApps() {
+            appsContainer.innerHTML = '';
+            let filteredApps = appsData.filter(app => {
+                const matchCategory = currentCategory === 'all' || app.category === currentCategory;
+                const matchSearch = app.title.toLowerCase().includes(searchInput.value.toLowerCase());
+                return matchCategory && matchSearch;
+            });
+
+            if (filteredApps.length === 0) {
+                noResultsMsg.style.display = 'block';
+            } else {
+                noResultsMsg.style.display = 'none';
+                filteredApps.forEach(app => {
+                    const catName = app.category === 'islamic' ? 'إسلامي' : 'متنوع';
+                    const appCard = document.createElement('div');
+                    appCard.className = 'app-card';
+                    appCard.onclick = () => openApp(app);
+                    appCard.innerHTML = `
+                        <img src="${app.icon}" class="app-icon" alt="icon" onerror="this.src='https://via.placeholder.com/150/1e293b/FFFFFF?text=App'">
+                        <div class="app-info">
+                            <h3>${app.title}</h3>
+                            <div class="app-category">${catName}</div>
+                            <div class="app-desc-short">${app.shortDesc}</div>
+                        </div>
+                        <svg class="enter-icon" viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
+                    `;
+                    appsContainer.appendChild(appCard);
+                });
+            }
+        }
+
+        // دوال التصفية والبحث
+        function setCategory(cat, btn) {
+            currentCategory = cat;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderApps();
+        }
+
+        function filterApps() {
+            renderApps();
+        }
+
+        // عرض صفحة التطبيق
+        function openApp(app) {
+            document.getElementById('pageIcon').src = app.icon;
+            document.getElementById('pageTitle').innerText = app.title;
+            document.getElementById('pageCat').innerText = app.category === 'islamic' ? 'إسلامي' : 'متنوع';
+            document.getElementById('pageVer').innerText = app.version;
+            document.getElementById('pageSize').innerText = app.size;
+            document.getElementById('pageDesc').innerText = app.fullDesc;
+            document.getElementById('pageDownloadBtn').href = app.apkLink;
+            
+            document.getElementById('appPage').style.display = 'flex';
+        }
+
+        function closeApp() {
+            document.getElementById('appPage').style.display = 'none';
+        }
+
+        // =======================================================
+        // جزء لوحة التحكم
+        // =======================================================
+
+        // فتح لوحة التحكم بالضغط 5 مرات على الشعار
+        let clickCount = 0;
+        document.getElementById('secretLogo').addEventListener('click', () => {
+            clickCount++;
+            if(clickCount >= 5) {
+                document.getElementById('adminPanel').style.display = 'flex';
+                clickCount = 0;
+            }
+            setTimeout(() => clickCount = 0, 3000); // إعادة التعيين بعد 3 ثواني
+        });
+
+        function closeAdmin() {
+            document.getElementById('adminPanel').style.display = 'none';
+        }
+
+        // إضافة تطبيق جديد لقاعدة البيانات
+        function addNewApp() {
+            const title = document.getElementById('addTitle').value;
+            const category = document.getElementById('addCat').value;
+            const version = document.getElementById('addVer').value;
+            const size = document.getElementById('addSize').value;
+            const icon = document.getElementById('addIcon').value;
+            const apkLink = document.getElementById('addApk').value;
+            const shortDesc = document.getElementById('addShortDesc').value;
+            const fullDesc = document.getElementById('addFullDesc').value;
+
+            if(!title || !icon || !apkLink) {
+                alert('يرجى ملء الاسم، رابط الأيقونة، ورابط التحميل على الأقل!');
+                return;
+            }
+
+            const addBtn = document.getElementById('addBtn');
+            addBtn.innerText = 'جاري الإضافة...';
+            addBtn.disabled = true;
+
+            db.collection("apps").add({
+                title: title,
+                category: category,
+                version: version || '1.0',
+                size: size || 'Unknown',
+                icon: icon,
+                apkLink: apkLink,
+                shortDesc: shortDesc,
+                fullDesc: fullDesc,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp() // ترتيب حسب الأحدث
+            })
+            .then(() => {
+                alert("تم إضافة التطبيق بنجاح!");
+                // تفريغ الحقول
+                document.querySelectorAll('.admin-panel input, .admin-panel textarea').forEach(input => input.value = '');
+                addBtn.innerText = '➕ إضافة التطبيق ونشره فوراً';
+                addBtn.disabled = false;
+            })
+            .catch((error) => {
+                console.error("خطأ:", error);
+                alert("حدث خطأ أثناء الإضافة.");
+                addBtn.innerText = '➕ إضافة التطبيق ونشره فوراً';
+                addBtn.disabled = false;
+            });
+        }
+
+        // عرض التطبيقات في لوحة التحكم للحذف
+        function renderAdminApps() {
+            adminList.innerHTML = '<h3 style="color:#fff; margin-bottom:10px; font-size:14px;">التطبيقات الحالية:</h3>';
+            if(appsData.length === 0) {
+                adminList.innerHTML += '<p style="color:gray; font-size:12px;">لا يوجد تطبيقات حالياً.</p>';
+            }
+            appsData.forEach(app => {
+                const item = document.createElement('div');
+                item.className = 'admin-app-item';
+                item.innerHTML = `
+                    <div class="app-name">${app.title}</div>
+                    <button onclick="deleteApp('${app.id}')">حذف 🗑️</button>
+                `;
+                adminList.appendChild(item);
+            });
+        }
+
+        // حذف التطبيق من قاعدة البيانات
+        function deleteApp(id) {
+            if(confirm('هل أنت متأكد من حذف هذا التطبيق نهائياً؟')) {
+                db.collection("apps").doc(id).delete()
+                .then(() => {
+                    console.log("تم الحذف");
+                })
+                .catch((error) => {
+                    console.error("خطأ في الحذف:", error);
+                });
+            }
+        }
+
+    </script>
+</body>
+</html>
