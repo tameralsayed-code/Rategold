@@ -148,8 +148,8 @@
             </div>
         </div>
         <div class="download-bar">
-            <!-- تم تعيين الزر ليفتح النافذة المنبثقة -->
-            <button id="pageDownloadBtn" class="download-btn">تنزيل (APK)</button>
+            <!-- تم إضافة type="button" لمنع أي سلوك افتراضي -->
+            <button type="button" id="pageDownloadBtn" class="download-btn">تنزيل (APK)</button>
         </div>
     </div>
 
@@ -168,8 +168,9 @@
                 بعد اكتمال التنزيل، يرجى سحب شريط الإشعارات والضغط على <b>"فتح" (Open)</b>، أو الذهاب لمجلد التنزيلات والضغط على الملف لكي تظهر لك <b>شاشة التثبيت</b>.
             </p>
             <div class="login-btns">
-                <button class="login-btn-submit" onclick="executeDownload()">فهمت، ابدأ التنزيل</button>
-                <button class="login-btn-cancel" onclick="closeDownloadModal()">إلغاء</button>
+                <!-- تم إضافة type="button" هنا أيضاً لتكون آمنة 100% -->
+                <button type="button" class="login-btn-submit" onclick="executeDownload()">فهمت، ابدأ التنزيل</button>
+                <button type="button" class="login-btn-cancel" onclick="closeDownloadModal()">إلغاء</button>
             </div>
         </div>
     </div>
@@ -181,8 +182,8 @@
             <input type="text" id="adminUser" placeholder="اسم المستخدم (admin)">
             <input type="password" id="adminPass" placeholder="كلمة المرور">
             <div class="login-btns">
-                <button class="login-btn-submit" onclick="checkLogin()">دخول</button>
-                <button class="login-btn-cancel" onclick="closeLogin()">إلغاء</button>
+                <button type="button" class="login-btn-submit" onclick="checkLogin()">دخول</button>
+                <button type="button" class="login-btn-cancel" onclick="closeLogin()">إلغاء</button>
             </div>
         </div>
     </div>
@@ -191,7 +192,7 @@
     <div class="admin-panel" id="adminPanel">
         <div class="admin-header">
             <h2>⚙️ لوحة التحكم (Firebase)</h2>
-            <button class="admin-close" onclick="closeAdmin()">تسجيل الخروج</button>
+            <button type="button" class="admin-close" onclick="closeAdmin()">تسجيل الخروج</button>
         </div>
 
         <div class="form-group">
@@ -233,8 +234,8 @@
         </div>
         
         <div class="action-btns-row">
-            <button class="download-btn" id="addBtn" style="flex: 2; border:none; cursor:pointer;" onclick="saveApp()">➕ إضافة التطبيق ونشره</button>
-            <button class="download-btn" id="cancelEditBtn" style="flex: 1; border:none; cursor:pointer; background: #475569; display: none;" onclick="cancelEdit()">إلغاء التعديل</button>
+            <button type="button" class="download-btn" id="addBtn" style="flex: 2; border:none; cursor:pointer;" onclick="saveApp()">➕ إضافة التطبيق ونشره</button>
+            <button type="button" class="download-btn" id="cancelEditBtn" style="flex: 1; border:none; cursor:pointer; background: #475569; display: none;" onclick="cancelEdit()">إلغاء التعديل</button>
         </div>
 
         <div class="admin-list" id="adminList">
@@ -341,7 +342,7 @@
         }
 
         // =======================================================
-        // نظام التنزيل (تم التعديل ليعمل بكفاءة)
+        // نظام التنزيل (التحميل في الخلفية بدون تغيير الصفحة)
         // =======================================================
         function openDownloadModal(link) {
             activeDownloadLink = link;
@@ -355,10 +356,33 @@
 
         function executeDownload() {
             if (activeDownloadLink) {
+                let finalLink = activeDownloadLink.trim();
+                
+                // التأكد من وجود البروتوكول
+                if (!finalLink.startsWith('http://') && !finalLink.startsWith('https://')) {
+                    finalLink = 'https://' + finalLink;
+                }
+
+                // تصحيح تلقائي لروابط GitHub (إذا تم وضع رابط الصفحة بدلاً من الملف الخام)
+                if (finalLink.includes('github.com') && finalLink.includes('/blob/')) {
+                    finalLink = finalLink.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
+                }
+
+                // الحل السحري: إنشاء Iframe مخفي في الخلفية وطلب الملف من خلاله
+                // هذا يضمن أن التنزيل يبدأ على نظام أندرويد دون أن يغادر المستخدم التطبيق أو يرى موقع التحميل
+                let downloadFrame = document.getElementById('hiddenDownloader');
+                if (!downloadFrame) {
+                    downloadFrame = document.createElement('iframe');
+                    downloadFrame.id = 'hiddenDownloader';
+                    downloadFrame.style.display = 'none'; // مخفي تماماً
+                    document.body.appendChild(downloadFrame);
+                }
+                
+                // مجرد وضع الرابط هنا سيجعل المتصفح يبدأ التنزيل تلقائياً في الخلفية
+                downloadFrame.src = finalLink;
+                
+                // إغلاق النافذة المنبثقة
                 closeDownloadModal();
-                // هذا السطر يخبر المتصفح بالتوجه للرابط وبدء التحميل 
-                // وبما أنه رابط مباشر لملف، فلن تتغير صفحة المتجر وسيبقى المستخدم فيها.
-                window.location.href = activeDownloadLink;
             }
         }
 
