@@ -153,7 +153,7 @@
         </div>
     </div>
 
-    <!-- نافذة تأكيد وتوضيح التنزيل (المعدلة) -->
+    <!-- نافذة تأكيد وتوضيح التنزيل -->
     <div class="download-modal" id="downloadConfirmModal">
         <div class="login-box">
             <svg viewBox="0 0 24 24" style="width: 45px; height: 45px; fill: var(--accent-gold); margin-bottom: 10px;">
@@ -263,7 +263,7 @@
         let appsData = [];
         let currentCategory = 'all';
         let editingAppId = null; 
-        let activeDownloadLink = ""; // متغير لحفظ رابط التنزيل الحالي
+        let activeDownloadLink = ""; 
 
         const appsContainer = document.getElementById('appsContainer');
         const adminList = document.getElementById('adminList');
@@ -331,7 +331,6 @@
             document.getElementById('pageSize').innerText = app.size;
             document.getElementById('pageDesc').innerText = app.fullDesc;
             
-            // تعيين وظيفة زر التنزيل لفتح النافذة المنبثقة للتعليمات وبدء التنزيل
             document.getElementById('pageDownloadBtn').onclick = () => openDownloadModal(app.apkLink);
             
             document.getElementById('appPage').style.display = 'flex';
@@ -342,7 +341,7 @@
         }
 
         // =======================================================
-        // نظام التنزيل الخفي والنافذة المنبثقة للتأكيد والتوجيه
+        // نظام التنزيل (تم التعديل ليعمل بكفاءة)
         // =======================================================
         function openDownloadModal(link) {
             activeDownloadLink = link;
@@ -356,18 +355,10 @@
 
         function executeDownload() {
             if (activeDownloadLink) {
-                // إغلاق النافذة
                 closeDownloadModal();
-                
-                // إنشاء عنصر <a> خفي برمجياً لتنفيذ عملية التنزيل في الخلفية
-                const hiddenLink = document.createElement('a');
-                hiddenLink.href = activeDownloadLink;
-                hiddenLink.setAttribute('download', ''); 
-                hiddenLink.style.display = 'none';
-                
-                document.body.appendChild(hiddenLink);
-                hiddenLink.click();
-                document.body.removeChild(hiddenLink);
+                // هذا السطر يخبر المتصفح بالتوجه للرابط وبدء التحميل 
+                // وبما أنه رابط مباشر لملف، فلن تتغير صفحة المتجر وسيبقى المستخدم فيها.
+                window.location.href = activeDownloadLink;
             }
         }
 
