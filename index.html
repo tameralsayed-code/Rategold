@@ -148,7 +148,6 @@
             </div>
         </div>
         <div class="download-bar">
-            <!-- تم إضافة type="button" لمنع أي سلوك افتراضي -->
             <button type="button" id="pageDownloadBtn" class="download-btn">تنزيل (APK)</button>
         </div>
     </div>
@@ -168,7 +167,6 @@
                 بعد اكتمال التنزيل، يرجى سحب شريط الإشعارات والضغط على <b>"فتح" (Open)</b>، أو الذهاب لمجلد التنزيلات والضغط على الملف لكي تظهر لك <b>شاشة التثبيت</b>.
             </p>
             <div class="login-btns">
-                <!-- تم إضافة type="button" هنا أيضاً لتكون آمنة 100% -->
                 <button type="button" class="login-btn-submit" onclick="executeDownload()">فهمت، ابدأ التنزيل</button>
                 <button type="button" class="login-btn-cancel" onclick="closeDownloadModal()">إلغاء</button>
             </div>
@@ -265,6 +263,7 @@
         let currentCategory = 'all';
         let editingAppId = null; 
         let activeDownloadLink = ""; 
+        let isFirstLoad = true; // متغير لفحص الرابط عند بداية التشغيل فقط
 
         const appsContainer = document.getElementById('appsContainer');
         const adminList = document.getElementById('adminList');
@@ -279,6 +278,12 @@
             });
             renderApps();
             renderAdminApps();
+            
+            // فحص الرابط المباشر (Deep Linking)
+            if (isFirstLoad) {
+                checkUrlForApp();
+                isFirstLoad = false;
+            }
         }, (error) => {
             console.error("خطأ في جلب البيانات: ", error);
             appsContainer.innerHTML = `<div class="loading-db" style="color:red;">حدث خطأ في الاتصال بقاعدة البيانات. تأكد من إعدادات Firestore.</div>`;
@@ -300,7 +305,8 @@
                     const catName = app.category === 'islamic' ? 'إسلامي' : 'متنوع';
                     const appCard = document.createElement('div');
                     appCard.className = 'app-card';
-                    appCard.onclick = () => openApp(app);
+                    // عند النقر يتم تمرير قيمة pushHistory=true لتغيير الرابط
+                    appCard.onclick = () => openApp(app, true);
                     appCard.innerHTML = `
                         <img src="${app.icon}" class="app-icon" alt="icon" onerror="this.src='https://via.placeholder.com/150/1e293b/FFFFFF?text=App'">
                         <div class="app-info">
@@ -324,7 +330,11 @@
 
         function filterApps() { renderApps(); }
 
-        function openApp(app) {
+        // =======================================================
+        // نظام التوجيه وتغيير الروابط (Routing & Deep Linking)
+        // =======================================================
+        
+        function openApp(app, pushHistory = true) {
             document.getElementById('pageIcon').src = app.icon;
             document.getElementById('pageTitle').innerText = app.title;
             document.getElementById('pageCat').innerText = app.category === 'islamic' ? 'إسلامي' : 'متنوع';
@@ -335,14 +345,52 @@
             document.getElementById('pageDownloadBtn').onclick = () => openDownloadModal(app.apkLink);
             
             document.getElementById('appPage').style.display = 'flex';
+
+            // إضافة الـ ID للرابط إذا كانت فتحة جديدة وليست (الرجوع/التقدم)
+            if (pushHistory) {
+                const newUrl = window.location.pathname + '?id=' + app.id;
+                window.history.pushState({ appId: app.id }, '', newUrl);
+            }
         }
 
-        function closeApp() {
+        function closeApp(pushHistory = true) {
             document.getElementById('appPage').style.display = 'none';
+            
+            // إزالة الـ ID من الرابط عند إغلاق التطبيق
+            if (pushHistory) {
+                window.history.pushState({}, '', window.location.pathname);
+            }
         }
+
+        // فحص الرابط عند تحميل الصفحة لأول مرة، لفتح التطبيق إذا كان الرابط مباشراً
+        function checkUrlForApp() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const appId = urlParams.get('id');
+            if (appId) {
+                const targetApp = appsData.find(a => a.id === appId);
+                if (targetApp) {
+                    openApp(targetApp, false); // false حتى لا نضاعف السجل
+                }
+            }
+        }
+
+        // الاستماع لزر الرجوع والتقدم في المتصفح / الجوال
+        window.addEventListener('popstate', (event) => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const appId = urlParams.get('id');
+            
+            if (appId) {
+                const targetApp = appsData.find(a => a.id === appId);
+                if (targetApp) {
+                    openApp(targetApp, false);
+                }
+            } else {
+                closeApp(false);
+            }
+        });
 
         // =======================================================
-        // نظام التنزيل (التحميل في الخلفية بدون تغيير الصفحة)
+        // نظام التنزيل (التحميل في الخلفية)
         // =======================================================
         function openDownloadModal(link) {
             activeDownloadLink = link;
@@ -358,30 +406,23 @@
             if (activeDownloadLink) {
                 let finalLink = activeDownloadLink.trim();
                 
-                // التأكد من وجود البروتوكول
                 if (!finalLink.startsWith('http://') && !finalLink.startsWith('https://')) {
                     finalLink = 'https://' + finalLink;
                 }
 
-                // تصحيح تلقائي لروابط GitHub (إذا تم وضع رابط الصفحة بدلاً من الملف الخام)
                 if (finalLink.includes('github.com') && finalLink.includes('/blob/')) {
                     finalLink = finalLink.replace('github.com', 'raw.githubusercontent.com').replace('/blob/', '/');
                 }
 
-                // الحل السحري: إنشاء Iframe مخفي في الخلفية وطلب الملف من خلاله
-                // هذا يضمن أن التنزيل يبدأ على نظام أندرويد دون أن يغادر المستخدم التطبيق أو يرى موقع التحميل
                 let downloadFrame = document.getElementById('hiddenDownloader');
                 if (!downloadFrame) {
                     downloadFrame = document.createElement('iframe');
                     downloadFrame.id = 'hiddenDownloader';
-                    downloadFrame.style.display = 'none'; // مخفي تماماً
+                    downloadFrame.style.display = 'none'; 
                     document.body.appendChild(downloadFrame);
                 }
                 
-                // مجرد وضع الرابط هنا سيجعل المتصفح يبدأ التنزيل تلقائياً في الخلفية
                 downloadFrame.src = finalLink;
-                
-                // إغلاق النافذة المنبثقة
                 closeDownloadModal();
             }
         }
